@@ -1,22 +1,40 @@
 function between(min, max) {
   return Math.floor(Math.random() * (max - min)) + min;
 }
-const constant = 20;
+function Lerp(x, y, t) {
+  return x * (1 - t) + y * t;
+}
+function InvLerp(a, b, v) {
+  if (v > b) return b;
+  if (v < a) return a;
+  return (v - a) / (b - a);
+}
+function lerping(min, max, outmin, outmax) {
+  return function (value) {
+    return Lerp(min, max, InvLerp(outmin, outmax, value));
+  };
+}
+
+const constant = 50;
 const app = Vue.createApp({
   data() {
     return {
-      playerHealth: { total: 300, current: 300 },
+      playerHealth: { total: 3000, current: 3000 },
       monsterHealth: { total: 800, current: 800 },
       monsterStrength: { total: 2.5, current: 2.5, tCurrent: 2.5 },
-      playerStrength: { total: Math.floor(5 / constant + 1), current: 1.5 },
+      playerStrength: {
+        total: Math.floor(5 / constant + 1),
+        current: Math.floor(5 / constant + 1) / 2,
+      },
+      lerp: lerping(2, constant, 1, constant * constant),
       playerHasAttacked: false,
       playerPower: false,
       timing: { total: 500, current: 500 },
-      delay: 150,
+      delay: 300,
       tRef: null,
       restful: 0,
       dRef: null,
-      enforcement: 100 / constant,
+      enforcement: 100,
       powerUp: false,
       attack(strength) {
         if (strength <= 0) return 0;
@@ -48,6 +66,7 @@ const app = Vue.createApp({
           this.playerHasAttacked = true;
           clearTimeout(this.tRef);
           clearTimeout(this.dRef);
+          const offset = constant / this.timing.total;
           if (this.playerPower) {
             strength.current +=
               strength.total /
@@ -55,10 +74,9 @@ const app = Vue.createApp({
               constant /
               (100 / this.enforcement);
             // const offset = Math.abs(strength.current * this.timing.total);
-            console.log(1 - constant / (1 / constant));
             this.timing.current = between(
-              this.timing.total * (1 - constant / (1 / constant)),
-              this.timing.total * (1 + constant / (1 / constant))
+              this.timing.total * (1 - offset),
+              this.timing.total * (1 + offset)
             );
           } else {
             reduce();
@@ -77,23 +95,22 @@ const app = Vue.createApp({
   },
   computed: {
     specialEnabled() {
-      return !(this.restful > constant);
+      return !(this.restful > 2);
     },
   },
   methods: {
     attackMonster() {
-      // if (this.restful <= constant) this.powerUp = true;
+      if (this.restful <= constant) this.powerUp = false;
       if (this.powerUp) {
-        this.playerStrength.total /= constant + 1 - 1 / constant;
-        this.enforcement /= constant + 1 - 1 / constant;
+        this.playerStrength.total /= this.enforcement / constant / constant;
+        this.enforcement /= 10 / constant;
         this.monsterStrength.current = this.monsterStrength.tCurrent;
-        this.powerUp = false;
       }
       if (this.monsterHealth.current <= 0 || this.playerHealth.current <= 0) {
         return;
       }
       if (!this.playerPower) this.attackPlayer();
-      else if (this.restful <= constant + 1) this.restful++;
+      else if (this.restful <= +1) this.restful++;
       this.attDel(this.playerStrength, this.playerHealth.current, true);
       const attack = this.attack(this.playerStrength.current);
       this.monsterHealth.current -= attack;
@@ -112,8 +129,8 @@ const app = Vue.createApp({
     },
     special() {
       if (!this.powerUp) {
-        this.playerStrength.total *= constant + 1 - 1 / constant;
-        this.enforcement *= constant + 1 - 1 / constant;
+        this.playerStrength.total *= this.enforcement / constant / constant;
+        this.enforcement *= 10 / constant;
         this.monsterStrength.current = 0;
         // this.restful += this.enforcement / constant / constant;
         this.powerUp = true;
